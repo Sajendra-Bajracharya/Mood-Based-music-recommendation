@@ -5,36 +5,49 @@ import os
 # 1. SETUP PARAMETERS
 IMG_SIZE = 48 
 BATCH_SIZE = 32
-DATA_DIR = "Data/" # Ensure this folder now contains Angry, Happy, Neutral, Sad folders
+DATA_DIR = "Data/" 
 
-# 2. WORKFLOW: Normalization 
-# Rescaling divides pixel values to be between 0 and 1 [cite: 55]
-datagen = ImageDataGenerator(
+# 2. WORKFLOW: Data Generators
+# Augmentation for Training: Forces the model to learn general features
+train_datagen = ImageDataGenerator(
     rescale=1./255,
-    validation_split=0.2 
+    rotation_range=15,      # Randomly rotate
+    width_shift_range=0.1,  # Shift horizontally
+    height_shift_range=0.1, # Shift vertically
+    shear_range=0.1,        # Slight distortion
+    zoom_range=0.1,         # Zoom in/out
+    horizontal_flip=True,   # Flip the face left/right
+    validation_split=0.2    
 )
 
-# 3. WORKFLOW: Multi-Class Loading
-# We change class_mode to "sparse" to handle more than 2 emotions [cite: 431]
-print("--- Loading Training Data (4 Emotions) ---")
-train_generator = datagen.flow_from_directory(
-    DATA_DIR,
-    target_size=(IMG_SIZE, IMG_SIZE),
-    color_mode="grayscale",           # Point 2: Convert to Grayscale [cite: 50]
-    batch_size=BATCH_SIZE,
-    class_mode="sparse",              # Changed from "binary" to handle 4 classes
-    subset="training"                 
+# No Augmentation for Validation: Keep it pure for testing
+val_datagen = ImageDataGenerator(
+    rescale=1./255, 
+    validation_split=0.2
 )
 
-print("\n--- Loading Validation Data (4 Emotions) ---")
-val_generator = datagen.flow_from_directory(
+# 3. WORKFLOW: Loading Data
+print("--- Loading Training Data (Augmented) ---")
+train_generator = train_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
     color_mode="grayscale",
     batch_size=BATCH_SIZE,
-    class_mode="sparse",              # Changed from "binary"
-    subset="validation"               
+    class_mode="sparse",
+    subset="training",
+    shuffle=True           # Keep shuffled for better learning
 )
 
-# Verify the labels assigned (e.g., {'Angry': 0, 'Happy': 1, 'Neutral': 2, 'Sad': 3})
+print("\n--- Loading Validation Data (Clean) ---")
+val_generator = val_datagen.flow_from_directory(
+    DATA_DIR,
+    target_size=(IMG_SIZE, IMG_SIZE),
+    color_mode="grayscale",
+    batch_size=BATCH_SIZE,
+    class_mode="sparse",
+    subset="validation",
+    shuffle=False          # IMPORTANT: Do not shuffle for test_model.py accuracy
+)
+
+# Verify the labels assigned
 print(f"\nLabels assigned: {train_generator.class_indices}")
