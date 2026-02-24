@@ -26,19 +26,19 @@ val_datagen = ImageDataGenerator(
     validation_split=0.2
 )
 
-# 3. WORKFLOW: Loading Data
+# 3. WORKFLOW: Loading Data start the trainning
 print("--- Loading Training Data (Augmented) ---")
 train_generator = train_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
     color_mode="grayscale",
     batch_size=BATCH_SIZE,
-    class_mode="sparse",
+    class_mode="sparse", # label all the emotions eg. Happy = 0
     subset="training",
     shuffle=True           # Keep shuffled for better learning
 )
 
-print("\n--- Loading Validation Data (Clean) ---")
+print("\n--- Loading Validation Data (Clean) ---") # Testing the data
 val_generator = val_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
