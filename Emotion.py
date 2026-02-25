@@ -74,33 +74,39 @@ class KMeansScratch:
             
         return self.centroids
 
-# --- MAIN SYSTEM INITIALIZATION ---
-if not os.path.exists(model_path):
-    print(f"Error: {model_path} not found!")
-else:
+def main():
+    """Run the original webcam-based SentiSymphonics flow."""
+    # --- MAIN SYSTEM INITIALIZATION ---
+    if not os.path.exists(model_path):
+        print(f"Error: {model_path} not found!")
+        return
+
     model = tf.keras.models.load_model(model_path, compile=False)
-    face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+    face_classifier = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    )
     cap = cv2.VideoCapture(0)
 
     start_time = time.time()
-    feature_vectors = [] 
-    captured_frame = None 
-    system_active = True  
+    feature_vectors = []
+    captured_frame = None
+    system_active = True
     final_mood = "Unknown"
 
     print(f"--- SentiSymphonics: Analyzing for {TRACKING_DURATION}s ---")
 
     while system_active:
         ret, frame = cap.read()
-        if not ret: break
+        if not ret:
+            break
 
         elapsed_time = time.time() - start_time
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = face_classifier.detectMultiScale(gray_frame, 1.3, 5)
 
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            roi = cv2.resize(gray_frame[y:y+h, x:x+w], (48, 48))
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+            roi = cv2.resize(gray_frame[y:y + h, x:x + w], (48, 48))
             roi = roi.astype('float32') / 255.0
             roi = np.reshape(roi, (1, 48, 48, 1))
 
@@ -111,8 +117,15 @@ else:
 
             # On-screen feedback
             remaining = max(0, int(TRACKING_DURATION - elapsed_time))
-            cv2.putText(frame, f"Capturing Mood: {remaining}s", (10, 50), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(
+                frame,
+                f"Capturing Mood: {remaining}s",
+                (10, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                2,
+            )
 
         if elapsed_time >= TRACKING_DURATION:
             if len(feature_vectors) > 5:
@@ -124,7 +137,7 @@ else:
                 # 2. Extract Winner
                 best_centroid = centroids[np.argmax(np.max(centroids, axis=1))]
                 winning_idx = np.argmax(best_centroid)
-                
+
                 # Strip spaces and normalize text to match Dictionary Keys
                 final_mood = str(EMOTION_LABELS[winning_idx]).strip()
 
@@ -138,27 +151,49 @@ else:
                     print(f"SUCCESS: Opening playlist for {final_mood}...")
                     webbrowser.open(music_url)
                 else:
-                    print(f"CRITICAL ERROR: Mood '{final_mood}' not found in MOOD_PLAYLISTS dictionary.")
-                    print(f"Check your dictionary keys spelling!")
+                    print(
+                        f"CRITICAL ERROR: Mood '{final_mood}' not found in "
+                        f"MOOD_PLAYLISTS dictionary."
+                    )
+                    print("Check your dictionary keys spelling!")
 
-                system_active = False 
+                system_active = False
             else:
                 print("⚠️ No faces detected. Restarting timer...")
                 start_time = time.time()
 
         cv2.imshow('SentiSymphonics - Monitoring', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'): break
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
     # Final Result Overlay Window
     if not system_active:
         result_window = np.zeros((300, 600, 3), dtype="uint8")
-        cv2.putText(result_window, f"RESULT: {final_mood}", (50, 130), 
-                    cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 255, 255), 2)
-        cv2.putText(result_window, "Opening Spotify...", (50, 200), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 1)
+        cv2.putText(
+            result_window,
+            f"RESULT: {final_mood}",
+            (50, 130),
+            cv2.FONT_HERSHEY_DUPLEX,
+            1.5,
+            (0, 255, 255),
+            2,
+        )
+        cv2.putText(
+            result_window,
+            "Opening Spotify...",
+            (50, 200),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (255, 255, 255),
+            1,
+        )
         cv2.imshow('Final Recommendation', result_window)
         print("Done. Press any key on the Result window to exit.")
         cv2.waitKey(0)
 
     cap.release()
     cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
