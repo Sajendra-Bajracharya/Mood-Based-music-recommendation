@@ -3,93 +3,108 @@ import numpy as np
 import tensorflow as tf
 import os
 import time
+import webbrowser
 from collections import Counter
 
 # --- CONFIGURATION ---
 model_path = 'emotion_model_best.h5'
-TRACKING_DURATION = 5  # 5 seconds for testing
+TRACKING_DURATION = 10 
+# Ensure these match your training labels exactly!
 EMOTION_LABELS = ['Angry', 'Fear', 'Happy', 'Neutral', 'Sad']
+
+# Step 1: Use Real Search URLs to ensure they always open correctly
+MOOD_PLAYLISTS = {
+    'Happy': 'https://open.spotify.com/search/happy%20vibes',
+    'Sad': 'https://open.spotify.com/search/sad%20lofi',
+    'Angry': 'https://open.spotify.com/search/heavy%20metal',
+    'Fear': 'https://open.spotify.com/search/calm%20piano',
+    'Neutral': 'https://open.spotify.com/search/chill%20mix'
+}
 
 if not os.path.exists(model_path):
     print(f"Error: {model_path} not found!")
 else:
-    # Load the brain we trained earlier
     model = tf.keras.models.load_model(model_path, compile=False)
-    # Load the "Face Finder" tool
     face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    # Turn on the Webcam
     cap = cv2.VideoCapture(0)
 
     start_time = time.time()
     emotion_history = [] 
+    captured_frame = None 
+    system_active = True  
 
-    print(f"--- Tracking the NEAREST person for {TRACKING_DURATION} seconds... ---")
+    print(f"--- SentiSymphonics: Analyzing for {TRACKING_DURATION}s ---")
 
-    while True:
+    while system_active:
         ret, frame = cap.read()
         if not ret: break
 
-        # Make the image gray (easier for the robot to read)
+        elapsed_time = time.time() - start_time
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-        # Detect ALL faces in the room
         faces = face_classifier.detectMultiScale(gray_frame, 1.3, 5)
 
-        elapsed_time = time.time() - start_time
-
-        # --- NEW LOGIC: ONLY PICK THE NEAREST (LARGEST) FACE ---
-        if len(faces) > 0:
-            # We sort faces by Area (Width * Height). 
-            # The person closest to the camera will have the biggest "Area".
-            # We use reverse=True so the biggest face is at index [0]
-            faces = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
             
-            # Grab ONLY the first face (the biggest/nearest one)
-            (x, y, w, h) = faces[0]
-
-            # Draw the box and prepare the "Face Image" for the AI
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 255), 2)
-            roi_gray = gray_frame[y:y+h, x:x+w]
-            roi_gray = cv2.resize(roi_gray, (48, 48))
-            
-            # Normalize the pixels (Scale from 0-255 down to 0-1)
-            roi = roi_gray.astype('float') / 255.0
+            roi = gray_frame[y:y+h, x:x+w]
+            roi = cv2.resize(roi, (48, 48))
+            roi = roi.astype('float32') / 255
             roi = np.reshape(roi, (1, 48, 48, 1))
 
-
-            # 1. Ask the AI: "What emotion is this?"
             prediction = model.predict(roi, verbose=0)
             confidence = np.max(prediction)
             label = EMOTION_LABELS[np.argmax(prediction)]
 
-            # 2. Only record the emotion if the AI is sure (above 40% confidence)
             if confidence > 0.40: 
                 emotion_history.append(label)
+                captured_frame = frame.copy() 
 
-            # Show the label on the screen
-            cv2.putText(frame, f"Nearest: {label} ({int(confidence*100)}%)", (x, y-10), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            # Countdown Timer on Screen
+            remaining = max(0, int(TRACKING_DURATION - elapsed_time))
+            cv2.putText(frame, f"Analyzing: {remaining}s", (10, 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.putText(frame, f"Last Detect: {label}", (10, 90), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         if elapsed_time >= TRACKING_DURATION:
             if emotion_history:
+                # Get the most frequent emotion
                 counts = Counter(emotion_history)
                 final_mood = counts.most_common(1)[0][0]
                 
-                print(f"\n--- ANALYSIS COMPLETE ---")
+                print(f"\n--- RESULTS ---")
                 print(f"Dominant Mood: {final_mood}")
-                print(f"Accuracy: {(counts[final_mood]/len(emotion_history))*100:.1f}%")
-                
-                # FUTURE STEP: play_music(final_mood) 
-            
-            # Reset the timer and the memory for the next 5 seconds
-            start_time = time.time()
-            emotion_history = []
 
-        # Show the camera window
-        cv2.imshow('Nearest Person Mood AI', frame)
-        
-        # Press 'q' to quit the program
-        if cv2.waitKey(1) & 0xFF == ord('q'): break
+                # Save the image
+                img_name = f"result_{final_mood}.jpg"
+                cv2.imwrite(img_name, captured_frame if captured_frame is not None else frame)
+
+                # Logic: Fetch and open the playlist
+                # .get() helps prevent errors if the label doesn't match a key
+                music_url = MOOD_PLAYLISTS.get(final_mood)
+
+                if music_url:
+                    print(f"Opening browser for: {final_mood}")
+                    webbrowser.open(music_url)
+                else:
+                    print(f"ERROR: No playlist found for '{final_mood}'. Check spelling in MOOD_PLAYLISTS.")
+
+                system_active = False 
+            else:
+                print("No face detected during the window. Restarting...")
+                start_time = time.time()
+
+        cv2.imshow('SentiSymphonics', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Show Final Result on the screen for a moment
+    if not system_active:
+        cv2.putText(frame, f"FINAL MOOD: {final_mood}", (50, 200), 
+                    cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 255, 255), 3)
+        cv2.imshow('SentiSymphonics', frame)
+        print("Press any key to close the app...")
+        cv2.waitKey(0)
 
     cap.release()
     cv2.destroyAllWindows()
