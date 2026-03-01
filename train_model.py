@@ -9,10 +9,10 @@ from prepare_data import train_generator, val_generator
 # We use a deeper "Double Conv" block structure to increase learning capacity
 model = Sequential([
     # Block 1: Initial features (edges, textures)
-    Conv2D(64, (3, 3), padding='same', activation='relu', input_shape=(48, 48, 1)),
+    Conv2D(64, (3, 3), padding='same', activation='relu', input_shape=(48, 48, 1)), #64 filters, 48X48 picture 1 color band
     Conv2D(64, (3, 3), padding='same', activation='relu'),
     BatchNormalization(),
-    MaxPooling2D(2, 2), # shrinks the images. 
+    MaxPooling2D(2, 2), # shrinks the images takes only important part
     Dropout(0.25),
 
     # Block 2: Complex facial shapes (eyes, corners of mouth)
@@ -30,19 +30,20 @@ model = Sequential([
     Dropout(0.25),
 
     # Dense Classifier
-    Flatten(),
-    Dense(512, activation='relu'),
+    Flatten(), # 1D Vector
+    Dense(512, activation='relu'), # voting or decesion
     BatchNormalization(),
     Dropout(0.5),
     
     # 5 Output classes: Angry, Fear, Happy, Neutral, Sad
-    Dense(5, activation='softmax') 
+    Dense(5, activation='softmax') # 5 emotions and Change it to the probabilities
+    # 5 neurons (one per class)
 ])
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy'] # how often it is correct
+    loss='sparse_categorical_crossentropy', # how wrong was the robot 
+    metrics=['accuracy'] # how often it is correct 
 )
 
 # --- STEP 2: SMART CALLBACKS ---

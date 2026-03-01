@@ -113,8 +113,8 @@ SPOTIFY_EMBED_PLAYLISTS = {
     "Happy": "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC",
     # Melancholic / reflective
     "Sad": "https://open.spotify.com/embed/playlist/37i9dQZF1DX7qK8ma5wgG1",
-    # Intense / aggressive
-    "Angry": "https://open.spotify.com/embed/playlist/37i9dQZF1DX1FJ6Qp87u4Y",
+    # Intense / aggressive – user-selected Rock Classics playlist
+    "Angry": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXRqgorJj26U",
     # Calm / soothing to counter fear
     "Fear": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXe9gFZP0gtP",
     # Neutral / focus background

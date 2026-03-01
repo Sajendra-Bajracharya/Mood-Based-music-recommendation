@@ -17,9 +17,7 @@ function Header() {
   return (
     <nav className="navbar navbar-expand-lg navbar-dark bg-dark border-bottom border-secondary mb-4">
       <div className="container-fluid">
-        <span className="navbar-brand fw-bold">
-          SentiSymphonics
-        </span>
+        <span className="navbar-brand fw-bold">Melo</span>
       </div>
     </nav>
   )
@@ -145,7 +143,7 @@ function ToastAlert({ show, message, onClose }) {
         aria-atomic="true"
       >
         <div className="toast-header">
-          <strong className="me-auto">SentiSymphonics</strong>
+          <strong className="me-auto">Melo</strong>
           <button
             type="button"
             className="btn-close btn-close-white"
@@ -169,8 +167,17 @@ function App() {
   const webcamRef = useRef(null)
 
   useEffect(() => {
-    document.title = `SentiSymphonics - ${status}`
+    document.title = `Melo - ${status}`
   }, [status])
+
+  // Auto-hide toast after 3 seconds whenever it appears
+  useEffect(() => {
+    if (!toast.show) return
+    const timer = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }))
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [toast.show])
 
   const handleCapture = async () => {
     if (!webcamRef.current || typeof webcamRef.current.getScreenshot !== 'function') {
@@ -204,8 +211,7 @@ function App() {
         },
       )
 
-      const { emotion: respEmotion, cluster: respCluster, spotify_uri } =
-        response.data
+      const { emotion: respEmotion, cluster: respCluster, spotify_uri } = response.data
 
       if (!respEmotion || !spotify_uri) {
         setStatus(STATUS.ERROR)

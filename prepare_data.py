@@ -9,7 +9,7 @@ DATA_DIR = "Data/"
 
 # 2. WORKFLOW: Data Generators
 # Augmentation for Training: Forces the model to learn general features
-train_datagen = ImageDataGenerator(
+train_datagen = ImageDataGenerator( # stored the data in the RAM or GPU
     rescale=1./255,
     rotation_range=15,      # Randomly rotate
     width_shift_range=0.1,  # Shift horizontally
