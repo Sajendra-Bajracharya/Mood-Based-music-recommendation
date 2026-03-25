@@ -9,6 +9,7 @@ from PIL import Image
 import tensorflow as tf
 
 from Emotion import KMeansScratch, EMOTION_LABELS, model_path
+from emotional_paths import get_paths_for_emotion, get_playlist_uri, DEFAULT_PLAYLIST
 
 
 app = Flask(__name__)
@@ -106,78 +107,91 @@ def compute_cluster(prediction: np.ndarray) -> int:
         return 0
 
 
-# Concrete Spotify embed playlist URLs for each emotion.
-# You can change these anytime to your own playlists if you prefer.
-SPOTIFY_EMBED_PLAYLISTS = {
-    # Upbeat / energetic
-    "Happy": "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC",
-    # Melancholic / reflective
-    "Sad": "https://open.spotify.com/embed/playlist/37i9dQZF1DX7qK8ma5wgG1",
-    # Intense / aggressive – user-selected Rock Classics playlist
-    "Angry": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXRqgorJj26U",
-    # Calm / soothing to counter fear
-    "Fear": "https://open.spotify.com/embed/playlist/37i9dQZF1DWXe9gFZP0gtP",
-    # Neutral / focus background
-    "Neutral": "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO",
-}
+# ---------------------------------------------------------------------------
+# Goal-based emotional regulation: analyze (emotion + paths) and recommend (playlist)
+# ---------------------------------------------------------------------------
 
 
-@app.route("/api/recommend", methods=["POST"])
-def recommend():
+def _analyze_image(payload: dict) -> tuple[str, int, list, str]:
     """
-    Expected JSON body:
-    {
-        "image": "<base64-encoded image or data URL>"
-    }
-
-    Response:
-    {
-        "emotion": "Happy",
-        "cluster": 0,
-        "spotify_uri": "https://open.spotify.com/embed/playlist/..."
-    }
+    Run emotion detection on image and return (emotion, cluster, paths, prompt).
+    paths and prompt come from emotional_paths; if emotion is unknown, returns empty paths.
     """
-    payload = request.get_json(silent=True)
-    if not payload or "image" not in payload:
-        return jsonify({"error": "Missing 'image' field in JSON body."}), 400
-
-    try:
-        image_tensor = preprocess_base64_image(payload["image"])
-    except NoFaceDetectedError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": f"Failed to decode image: {exc}"}), 400
-
-    # Model prediction -> raw probabilities for 5 emotions
-    prediction = model.predict(image_tensor, verbose=0)[0]  # shape (5,)
-
-    # Track feature history for KMeansScratch
+    image_tensor = preprocess_base64_image(payload["image"])
+    prediction = model.predict(image_tensor, verbose=0)[0]
     update_feature_history(prediction)
 
-    # Determine dominant emotion
     winning_idx = int(np.argmax(prediction))
     try:
         emotion = str(EMOTION_LABELS[winning_idx]).strip()
     except (IndexError, TypeError):
         emotion = "Unknown"
 
-    # Compute cluster using manual K-Means implementation
     cluster_index = compute_cluster(prediction)
+    path_config = get_paths_for_emotion(emotion)
 
-    # Map emotion to an embeddable Spotify playlist URL
-    spotify_uri = SPOTIFY_EMBED_PLAYLISTS.get(emotion)
+    if path_config:
+        paths = path_config["paths"]
+        prompt = path_config["prompt"]
+    else:
+        paths = []
+        prompt = "Choose how you'd like to feel."
 
-    if not spotify_uri:
-        # Fallback generic embed
-        spotify_uri = "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO"
+    return emotion, int(cluster_index), paths, prompt
 
-    return jsonify(
-        {
-            "emotion": emotion,
-            "cluster": int(cluster_index),
-            "spotify_uri": spotify_uri,
-        }
-    )
+
+@app.route("/api/analyze", methods=["POST"])
+def analyze():
+    """
+    Goal-based step 1: detect emotion and return path options.
+
+    Expected JSON: { "image": "<base64 or data URL>" }
+    Response: { "emotion", "cluster", "paths": [{ "id", "label", "description", "music_profile" }], "prompt" }
+    """
+    payload = request.get_json(silent=True)
+    if not payload or "image" not in payload:
+        return jsonify({"error": "Missing 'image' field in JSON body."}), 400
+
+    try:
+        emotion, cluster_index, paths, prompt = _analyze_image(payload)
+    except NoFaceDetectedError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"Failed to decode image: {exc}"}), 400
+
+    return jsonify({
+        "emotion": emotion,
+        "cluster": cluster_index,
+        "paths": paths,
+        "prompt": prompt,
+    })
+
+
+@app.route("/api/recommend", methods=["POST"])
+def recommend():
+    """
+    Goal-based step 2: return Spotify playlist for the chosen emotion + path.
+
+    Expected JSON: { "emotion": "Angry", "path_id": "cool_down" }
+    Response: { "spotify_uri": "https://open.spotify.com/embed/playlist/..." }
+    """
+    payload = request.get_json(silent=True)
+    if not payload:
+        return jsonify({"error": "JSON body required."}), 400
+
+    emotion = payload.get("emotion") or ""
+    path_id = payload.get("path_id") or ""
+
+    if not emotion or not path_id:
+        return jsonify({
+            "error": "Both 'emotion' and 'path_id' are required.",
+        }), 400
+
+    spotify_uri = get_playlist_uri(emotion, path_id)
+
+    return jsonify({
+        "spotify_uri": spotify_uri,
+    })
 
 
 if __name__ == "__main__":

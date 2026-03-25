@@ -1,27 +1,93 @@
-.camera-wrapper {
-  background: radial-gradient(circle at top left, #1f2933, #000);
+/* ============================================================
+   Full-height layout: root → content → row → right col → card → body → embed
+   Every step must pass height down so the Spotify iframe can fill the space.
+   ============================================================ */
+
+/* 1. App root: flex column, fill #root so we have full viewport height */
+.app-root {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
+/* 2. Content area (Bootstrap .container): take all space below header, become flex container */
+.app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 3. Row: fill container height so both columns stretch to same height */
+.app-row {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  /* Force row to be at least viewport minus header/padding so right column has real height */
+  min-height: calc(100vh - 80px);
+}
+
+/* 4. Right column: flex column so the card inside can grow and fill */
+.app-right-col {
+  display: flex !important;
+  flex-direction: column;
+  min-height: calc(100vh - 100px);
+}
+
+/* 5. Music card in right column: fill the column height */
+.app-right-col .music-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 6. Card body: fill the card, flex column so path section + embed stack */
 .music-card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-.music-embed-wrapper {
-  width: 100%;
-  height: 100%;
-  min-height: 480px;
-  border-radius: 0 0 0.75rem 0.75rem;
+.music-card .card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
-  border-top: 1px solid #343a40;
-  border-bottom: none;
-  border-left: none;
-  border-right: none;
+}
+
+.music-card .card-body .music-path-section {
+  flex-shrink: 0;
+}
+
+/* 7. Spotify embed wrapper: take all remaining space below path buttons */
+.music-embed-wrapper {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  width: 100%;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  border: 1px solid #343a40;
   background-color: #000;
 }
 
+/* 8. Iframe: fill the wrapper completely (absolute so it respects wrapper height) */
 .music-embed-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
   border: none;
+  display: block;
+}
+
+/* Left panel camera wrapper (unchanged) */
+.camera-wrapper {
+  background: radial-gradient(circle at top left, #1f2933, #000);
 }

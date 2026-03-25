@@ -92,37 +92,63 @@ function AnalysisCard({ status, emotion, cluster, onCapture, disabled }) {
   )
 }
 
-function MusicPlayer({ spotifyUri }) {
-  if (!spotifyUri) {
-    return (
-      <div className="card bg-dark text-light border-secondary shadow-sm h-100">
-        <div className="card-header border-secondary">
-          <h5 className="mb-0">Music Recommendation</h5>
-        </div>
-        <div className="card-body d-flex align-items-center justify-content-center">
-          <p className="text-muted mb-0">
-            Capture your mood to get a playlist recommendation.
-          </p>
-        </div>
-      </div>
-    )
-  }
+function MusicRecommendation({
+  emotion,
+  prompt,
+  paths,
+  spotifyUri,
+  onSelectPath,
+  pathLoading,
+}) {
+  const hasPaths = emotion && paths?.length > 0
 
   return (
     <div className="card bg-dark text-light border-secondary shadow-sm h-100 music-card">
       <div className="card-header border-secondary">
         <h5 className="mb-0">Music Recommendation</h5>
       </div>
-      <div className="card-body p-0">
-        <div className="music-embed-wrapper">
-          <iframe
-            src={spotifyUri}
-            title="Spotify Player"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-            className="music-embed-iframe"
-          />
-        </div>
+      <div className="card-body">
+        {!hasPaths && !spotifyUri && (
+          <p className="text-muted mb-0 text-center">
+            Capture your mood to get a playlist recommendation.
+          </p>
+        )}
+
+        {hasPaths && (
+          <div className="music-path-section mb-3">
+            <p className="text-muted small mb-1">Detected: {emotion}</p>
+            <p className="mb-2">{prompt}</p>
+            <div className="d-flex flex-column gap-2">
+              {paths.map((path) => (
+                <button
+                  key={path.id}
+                  type="button"
+                  className="btn btn-outline-primary text-start d-flex flex-column align-items-start"
+                  onClick={() => onSelectPath(path.id)}
+                  disabled={pathLoading}
+                >
+                  <span className="fw-semibold">{path.label}</span>
+                  <span className="small text-muted">{path.description}</span>
+                </button>
+              ))}
+            </div>
+            {pathLoading && (
+              <p className="text-warning small mt-2 mb-0">Loading playlist…</p>
+            )}
+          </div>
+        )}
+
+        {spotifyUri && (
+          <div className="music-embed-wrapper">
+            <iframe
+              src={spotifyUri}
+              title="Spotify Player"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              className="music-embed-iframe"
+            />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -161,7 +187,10 @@ function App() {
   const [status, setStatus] = useState(STATUS.IDLE)
   const [emotion, setEmotion] = useState(null)
   const [cluster, setCluster] = useState(null)
+  const [paths, setPaths] = useState([])
+  const [prompt, setPrompt] = useState(null)
   const [spotifyUri, setSpotifyUri] = useState(null)
+  const [pathLoading, setPathLoading] = useState(false)
   const [toast, setToast] = useState({ show: false, message: '' })
 
   const webcamRef = useRef(null)
@@ -199,33 +228,30 @@ function App() {
     }
 
     setStatus(STATUS.ANALYZING)
+    setSpotifyUri(null)
 
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/recommend`,
+        `${API_BASE_URL}/api/analyze`,
         { image: imageSrc },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
+        { headers: { 'Content-Type': 'application/json' } },
       )
 
-      const { emotion: respEmotion, cluster: respCluster, spotify_uri } = response.data
+      const { emotion: respEmotion, cluster: respCluster, paths: respPaths, prompt: respPrompt } = response.data
 
-      if (!respEmotion || !spotify_uri) {
+      if (!respEmotion) {
         setStatus(STATUS.ERROR)
         setToast({
           show: true,
-          message:
-            'No face detected or model could not determine emotion. Please try again.',
+          message: 'No face detected or model could not determine emotion. Please try again.',
         })
         return
       }
 
       setEmotion(respEmotion)
-      setCluster(respCluster)
-      setSpotifyUri(spotify_uri)
+      setCluster(respCluster ?? null)
+      setPaths(Array.isArray(respPaths) ? respPaths : [])
+      setPrompt(respPrompt ?? null)
       setStatus(STATUS.SUCCESS)
     } catch (error) {
       console.error(error)
@@ -240,16 +266,44 @@ function App() {
     }
   }
 
+  const handleSelectPath = async (pathId) => {
+    if (!emotion || !pathId) return
+
+    setPathLoading(true)
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/recommend`,
+        { emotion, path_id: pathId },
+        { headers: { 'Content-Type': 'application/json' } },
+      )
+
+      const uri = response.data?.spotify_uri
+      if (uri) {
+        setSpotifyUri(uri)
+      } else {
+        setToast({ show: true, message: 'Could not load playlist.' })
+      }
+    } catch (error) {
+      console.error(error)
+      setToast({
+        show: true,
+        message: error.response?.data?.error || 'Failed to load recommendation.',
+      })
+    } finally {
+      setPathLoading(false)
+    }
+  }
+
   const closeToast = () => {
     setToast((prev) => ({ ...prev, show: false }))
   }
 
   return (
-    <div className="bg-black min-vh-100 text-light">
+    <div className="bg-black min-vh-100 text-light app-root">
       <Header />
 
-      <div className="container py-4">
-        <div className="row g-4">
+      <div className="container py-4 app-content">
+        <div className="row g-4 app-row">
           <div className="col-lg-6 d-flex flex-column gap-3">
             <CameraView webcamRef={webcamRef} />
             <AnalysisCard
@@ -261,8 +315,15 @@ function App() {
             />
           </div>
 
-          <div className="col-lg-6">
-            <MusicPlayer spotifyUri={spotifyUri} />
+          <div className="col-lg-6 app-right-col">
+            <MusicRecommendation
+              emotion={emotion}
+              prompt={prompt}
+              paths={paths}
+              spotifyUri={spotifyUri}
+              onSelectPath={handleSelectPath}
+              pathLoading={pathLoading}
+            />
           </div>
         </div>
       </div>

@@ -7,38 +7,38 @@ IMG_SIZE = 48
 BATCH_SIZE = 32
 DATA_DIR = "Data/" 
 
-# 2. WORKFLOW: Data Generators
-# Augmentation for Training: Forces the model to learn general features
-train_datagen = ImageDataGenerator( # stored the data in the RAM or GPU
+# 2. WORKFLOW: Enhanced Data Generators
+train_datagen = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=15,      # Randomly rotate
-    width_shift_range=0.1,  # Shift horizontally
-    height_shift_range=0.1, # Shift vertically
-    shear_range=0.1,        # Slight distortion
-    zoom_range=0.1,         # Zoom in/out
-    horizontal_flip=True,   # Flip the face left/right
+    rotation_range=20,      
+    width_shift_range=0.2,  
+    height_shift_range=0.2, 
+    shear_range=0.2,        
+    zoom_range=0.2,         
+    horizontal_flip=True,   
+    brightness_range=[0.8, 1.2], # Helps model ignore lighting variations
+    fill_mode='nearest',
     validation_split=0.2    
 )
 
-# No Augmentation for Validation: Keep it pure for testing
 val_datagen = ImageDataGenerator(
     rescale=1./255, 
     validation_split=0.2
 )
 
-# 3. WORKFLOW: Loading Data start the trainning
-print("--- Loading Training Data (Augmented) ---")
+# 3. WORKFLOW: Loading Data
+print("--- Loading Training Data (Advanced Augmentation) ---")
 train_generator = train_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
     color_mode="grayscale",
     batch_size=BATCH_SIZE,
-    class_mode="sparse", # label all the emotions eg. Happy = 0
+    class_mode="sparse",
     subset="training",
-    shuffle=True           # Keep shuffled for better learning
+    shuffle=True
 )
 
-print("\n--- Loading Validation Data (Clean) ---") # Testing the data
+print("\n--- Loading Validation Data (Clean) ---")
 val_generator = val_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
@@ -46,8 +46,7 @@ val_generator = val_datagen.flow_from_directory(
     batch_size=BATCH_SIZE,
     class_mode="sparse",
     subset="validation",
-    shuffle=False          # IMPORTANT: Do not shuffle for test_model.py accuracy
+    shuffle=False 
 )
 
-# Verify the labels assigned
 print(f"\nLabels assigned: {train_generator.class_indices}")
