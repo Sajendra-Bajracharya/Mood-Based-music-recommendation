@@ -106,12 +106,14 @@ def main():
 
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            roi = cv2.resize(gray_frame[y:y + h, x:x + w], (48, 48))
-            roi = roi.astype('float32') / 255.0
-            roi = np.reshape(roi, (1, 48, 48, 1))
+            # Face ROI is detected from a grayscale frame; convert to RGB for ResNet50V2.
+            roi_gray = cv2.resize(gray_frame[y:y + h, x:x + w], (48, 48))
+            roi_rgb = cv2.cvtColor(roi_gray, cv2.COLOR_GRAY2RGB)
+            roi_rgb = tf.keras.applications.resnet_v2.preprocess_input(roi_rgb.astype("float32"))
+            roi_rgb = np.reshape(roi_rgb, (1, 48, 48, 3))
 
             # Store the raw probabilities for K-Means Analysis
-            prediction = model.predict(roi, verbose=0)[0]
+            prediction = model.predict(roi_rgb, verbose=0)[0]
             feature_vectors.append(prediction)
             captured_frame = frame.copy()
 

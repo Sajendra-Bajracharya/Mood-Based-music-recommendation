@@ -24,7 +24,6 @@
   flex: 1;
   min-height: 0;
   align-items: stretch;
-  /* Force row to be at least viewport minus header/padding so right column has real height */
   min-height: calc(100vh - 80px);
 }
 
@@ -41,6 +40,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;        /* ← added: force card to claim full column height */
 }
 
 /* 6. Card body: fill the card, flex column so path section + embed stack */
@@ -48,6 +48,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 100%;        /* ← added: card itself must also be 100% tall */
 }
 
 .music-card .card-body {
@@ -56,38 +57,43 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  height: 100%;        /* ← added: card-body fills the card */
 }
 
 .music-card .card-body .music-path-section {
   flex-shrink: 0;
 }
 
-/* 7. Spotify embed wrapper: take all remaining space below path buttons */
+/* 7. Spotify embed wrapper: take ALL remaining space below path buttons */
 .music-embed-wrapper {
-  flex: 1;
-  min-height: 0;
-  position: relative;
+  flex: 1 1 auto;
+  display: flex;              /* ← changed: wrapper becomes a flex container */
+  flex-direction: column;
+  min-height: 400px;           /* ← added: set a reasonable minimum height */
   width: 100%;
   border-radius: 0.375rem;
   overflow: hidden;
   border: 1px solid #343a40;
   background-color: #000;
+  /* Remove position:relative — no longer needed */
 }
 
-/* 8. Iframe: fill the wrapper completely (absolute so it respects wrapper height) */
+/* 8. Iframe: fill the wrapper completely */
 .music-embed-iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: 1;                    /* ← grows to fill all wrapper space */
   width: 100%;
-  height: 100%;
+  min-height: 400px;              /* ← prevents flex blowout */
   border: none;
   display: block;
+  /* Remove position:absolute / top/left/right/bottom — no longer needed */
 }
 
 /* Left panel camera wrapper (unchanged) */
 .camera-wrapper {
   background: radial-gradient(circle at top left, #1f2933, #000);
+}
+
+/* Make the mood choice text (and option descriptions) white */
+.music-card .text-muted {
+  color: rgba(255, 255, 255, 0.95) !important;
 }

@@ -237,7 +237,13 @@ function App() {
         { headers: { 'Content-Type': 'application/json' } },
       )
 
-      const { emotion: respEmotion, cluster: respCluster, paths: respPaths, prompt: respPrompt } = response.data
+      const {
+        emotion: respEmotion,
+        cluster: respCluster,
+        paths: respPaths,
+        prompt: respPrompt,
+        spotify_uri: respSpotifyUri,
+      } = response.data
 
       if (!respEmotion) {
         setStatus(STATUS.ERROR)
@@ -250,8 +256,16 @@ function App() {
 
       setEmotion(respEmotion)
       setCluster(respCluster ?? null)
-      setPaths(Array.isArray(respPaths) ? respPaths : [])
-      setPrompt(respPrompt ?? null)
+
+      if (respSpotifyUri) {
+        // For Fear we auto-pick a calm playlist, so no choice buttons.
+        setSpotifyUri(respSpotifyUri)
+        setPaths([])
+        setPrompt(null)
+      } else {
+        setPaths(Array.isArray(respPaths) ? respPaths : [])
+        setPrompt(respPrompt ?? null)
+      }
       setStatus(STATUS.SUCCESS)
     } catch (error) {
       console.error(error)

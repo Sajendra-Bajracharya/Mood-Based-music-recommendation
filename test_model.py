@@ -15,6 +15,11 @@ model = load_model(model_path)
 val_generator.shuffle = False  
 val_generator.reset()          
 
+# Sanity check: the validation generator must produce RGB tensors to match ResNet50V2.
+print(f"Validation generator color_mode: {getattr(val_generator, 'color_mode', 'unknown')}")
+if getattr(val_generator, "color_mode", None) != "rgb":
+    raise ValueError("val_generator is not using color_mode='rgb' (expected for ResNet50V2).")
+
 # 3. GET PREDICTIONS
 print("--- Evaluating on Validation Data... ---")
 # Predict probabilities

@@ -9,7 +9,7 @@ DATA_DIR = "Data/"
 
 # 2. WORKFLOW: Enhanced Data Generators
 train_datagen = ImageDataGenerator(
-    rescale=1./255,
+    preprocessing_function=tf.keras.applications.resnet_v2.preprocess_input,
     rotation_range=20,      
     width_shift_range=0.2,  
     height_shift_range=0.2, 
@@ -22,7 +22,7 @@ train_datagen = ImageDataGenerator(
 )
 
 val_datagen = ImageDataGenerator(
-    rescale=1./255, 
+    preprocessing_function=tf.keras.applications.resnet_v2.preprocess_input,
     validation_split=0.2
 )
 
@@ -31,7 +31,7 @@ print("--- Loading Training Data (Advanced Augmentation) ---")
 train_generator = train_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
-    color_mode="grayscale",
+    color_mode="rgb",
     batch_size=BATCH_SIZE,
     class_mode="sparse",
     subset="training",
@@ -42,7 +42,7 @@ print("\n--- Loading Validation Data (Clean) ---")
 val_generator = val_datagen.flow_from_directory(
     DATA_DIR,
     target_size=(IMG_SIZE, IMG_SIZE),
-    color_mode="grayscale",
+    color_mode="rgb",
     batch_size=BATCH_SIZE,
     class_mode="sparse",
     subset="validation",

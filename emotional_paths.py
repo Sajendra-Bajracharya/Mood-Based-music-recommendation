@@ -28,100 +28,95 @@ class EmotionConfig(TypedDict):
 EMOTION_PATHS: dict[str, EmotionConfig] = {
     "Angry": {
         "prompt": (
-            "Feeling the heat? Do you want to blow off some steam with something "
-            "heavy, or cool down and find some headspace?"
+            "What do you want next? Calm down or let it out?"
         ),
         "paths": [
             {
                 "id": "lean_into_it",
-                "label": "Lean Into It",
-                "description": "Catharsis & Release",
+                "label": "Let it out",
+                "description": "Loud and strong",
                 "music_profile": "aggressive beats, heavy bass, rock, metal, high tempo",
             },
             {
                 "id": "cool_down",
-                "label": "Cool Down",
-                "description": "De-escalation",
+                "label": "Calm down",
+                "description": "Slow and steady",
                 "music_profile": "lo-fi, ambient, slow jazz",
             },
         ],
     },
     "Neutral": {
         "prompt": (
-            "Keeping it steady? Stay in the zone with focus-friendly tracks, "
-            "or want a mood boost?"
+            "Pick a goal: focus or feel better."
         ),
         "paths": [
             {
-                "id": "stay_steady",
-                "label": "Stay Steady",
-                "description": "Focus & Flow",
+                "id": "",
+                "label": "Focus",
+                "description": "Calm and steady",
                 "music_profile": "minimalist instrumentals, deep house, brown noise",
             },
             {
-                "id": "shift_gears",
-                "label": "Shift Gears",
-                "description": "Inspiration",
+                "id": "shift_stay_steadygears",
+                "label": "Boost",
+                "description": "Light and fun",
                 "music_profile": "indie, funk, discovery playlists",
             },
         ],
     },
     "Happy": {
         "prompt": (
-            "You're glowing! Turn it up and keep the party going, "
-            "or relax into a feel-good groove?"
+            "Keep the good vibes, or slow it down."
         ),
         "paths": [
             {
                 "id": "celebrate",
-                "label": "Celebrate",
-                "description": "Maximum Euphoria",
+                "label": "Keep going",
+                "description": "More energy",
                 "music_profile": "high-energy pop, dance anthems",
             },
             {
                 "id": "mellow_out",
-                "label": "Mellow Out",
-                "description": "Contentment",
+                "label": "Chill",
+                "description": "Relax",
                 "music_profile": "acoustic, chill lounge",
             },
         ],
     },
     "Fear": {
         "prompt": (
-            "Feeling uneasy? Want music that understands you, "
-            "or something grounding and calming?"
+            "Pick what feels safe: comfort or calm."
         ),
         "paths": [
             {
                 "id": "validate",
-                "label": "Validate",
-                "description": "Emotional Solidarity",
+                "label": "Be kind to me",
+                "description": "Gentle support",
                 "music_profile": "melodic minor, atmospheric indie, vulnerable lyrics",
             },
             {
                 "id": "ground",
-                "label": "Ground",
-                "description": "Security & Calm",
+                "label": "Feel calm",
+                "description": "Safe and steady",
                 "music_profile": "nature sounds, binaural beats, predictable classical",
             },
         ],
     },
     "Sad": {
         "prompt": (
-            "Having a tough moment? Sit with it with reflective tunes, "
-            "or lean into something warm and comforting?"
+            "Pick: comfort, or a warm boost."
         ),
         "paths": [
             {
                 "id": "lean_in",
-                "label": "Lean In",
-                "description": "Reflection",
+                "label": "Feel it",
+                "description": "Soft and sad",
                 "music_profile": "melancholic, reflective, soft vocals",
             },
             {
                 "id": "comfort",
-                "label": "Comfort",
-                "description": "Warmth & Ease",
+                "label": "Be comforted",
+                "description": "Warm and easy",
                 "music_profile": "warm acoustic, gentle piano, soothing",
             },
         ],

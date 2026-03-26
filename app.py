@@ -40,8 +40,8 @@ face_classifier = cv2.CascadeClassifier(
 def preprocess_base64_image(image_b64: str) -> np.ndarray:
     """
     Accepts a base64-encoded image string (optionally a data URL),
-    converts it to a 48x48 grayscale tensor of shape (1, 48, 48, 1)
-    normalized to [0, 1].
+    detects a face region, converts it to a 48x48 RGB tensor of shape
+    (1, 48, 48, 3) and applies `resnet_v2.preprocess_input`.
     """
     # Handle data URLs of the form "data:image/jpeg;base64,AAAA..."
     if "," in image_b64:
@@ -63,9 +63,10 @@ def preprocess_base64_image(image_b64: str) -> np.ndarray:
     roi = gray[y : y + h, x : x + w]
     roi = cv2.resize(roi, (48, 48))
 
-    arr = roi.astype("float32") / 255.0
-    arr = np.reshape(arr, (1, 48, 48, 1))
-    return arr
+    # ROI comes from a grayscale frame; ResNet50V2 expects RGB.
+    roi_rgb = cv2.cvtColor(roi, cv2.COLOR_GRAY2RGB)
+    roi_rgb = tf.keras.applications.resnet_v2.preprocess_input(roi_rgb.astype("float32"))
+    return np.reshape(roi_rgb, (1, 48, 48, 3))
 
 
 def update_feature_history(vector: np.ndarray) -> None:
@@ -112,10 +113,10 @@ def compute_cluster(prediction: np.ndarray) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _analyze_image(payload: dict) -> tuple[str, int, list, str]:
+def _analyze_image(payload: dict) -> tuple[str, int, list, str, str | None]:
     """
-    Run emotion detection on image and return (emotion, cluster, paths, prompt).
-    paths and prompt come from emotional_paths; if emotion is unknown, returns empty paths.
+    Run emotion detection on image and return
+    (emotion, cluster, paths, prompt, auto_spotify_uri).
     """
     image_tensor = preprocess_base64_image(payload["image"])
     prediction = model.predict(image_tensor, verbose=0)[0]
@@ -130,6 +131,16 @@ def _analyze_image(payload: dict) -> tuple[str, int, list, str]:
     cluster_index = compute_cluster(prediction)
     path_config = get_paths_for_emotion(emotion)
 
+    # Do not ask the user to choose options for certain emotions.
+    # We auto-pick one playlist automatically.
+    if emotion == "Fear":
+        auto_spotify_uri = get_playlist_uri(emotion, "ground")
+        return emotion, int(cluster_index), [], "Take it easy.", auto_spotify_uri
+
+    if emotion == "Happy":
+        auto_spotify_uri = get_playlist_uri(emotion, "celebrate")
+        return emotion, int(cluster_index), [], "Keep the good vibes.", auto_spotify_uri
+
     if path_config:
         paths = path_config["paths"]
         prompt = path_config["prompt"]
@@ -137,7 +148,7 @@ def _analyze_image(payload: dict) -> tuple[str, int, list, str]:
         paths = []
         prompt = "Choose how you'd like to feel."
 
-    return emotion, int(cluster_index), paths, prompt
+    return emotion, int(cluster_index), paths, prompt, None
 
 
 @app.route("/api/analyze", methods=["POST"])
@@ -153,7 +164,7 @@ def analyze():
         return jsonify({"error": "Missing 'image' field in JSON body."}), 400
 
     try:
-        emotion, cluster_index, paths, prompt = _analyze_image(payload)
+        emotion, cluster_index, paths, prompt, spotify_uri = _analyze_image(payload)
     except NoFaceDetectedError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:
@@ -164,6 +175,7 @@ def analyze():
         "cluster": cluster_index,
         "paths": paths,
         "prompt": prompt,
+        "spotify_uri": spotify_uri,
     })
 
 
