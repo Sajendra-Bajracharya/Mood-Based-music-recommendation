@@ -1,14 +1,15 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import base64
 import io
+import threading
 
 import cv2
 import numpy as np
 from PIL import Image
 import tensorflow as tf
 
-from Emotion import KMeansScratch, EMOTION_LABELS, model_path
+from Emotion import KMeansScratch, EMOTION_LABELS, model_path, run_emotion_analysis
 from emotional_paths import get_paths_for_emotion, get_playlist_uri, DEFAULT_PLAYLIST
 
 
@@ -30,6 +31,8 @@ except Exception as exc:
 # can perform a meaningful clustering across recent requests.
 FEATURE_HISTORY: list[np.ndarray] = []
 FEATURE_HISTORY_MAX_LEN = 100
+ANALYSIS_THREAD: threading.Thread | None = None
+ANALYSIS_LOCK = threading.Lock()
 
 # Face detector (same Haar cascade used in the original Emotion.py script)
 face_classifier = cv2.CascadeClassifier(
@@ -106,6 +109,17 @@ def compute_cluster(prediction: np.ndarray) -> int:
         kmeans = KMeansScratch(k=1)
         _ = kmeans.fit(data)
         return 0
+
+
+def _analysis_runner() -> None:
+    """Run webcam analysis in a background thread."""
+    try:
+        run_emotion_analysis()
+    finally:
+        # Mark complete after finishing, even if an exception occurs.
+        with ANALYSIS_LOCK:
+            global ANALYSIS_THREAD
+            ANALYSIS_THREAD = None
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +218,35 @@ def recommend():
     return jsonify({
         "spotify_uri": spotify_uri,
     })
+
+
+@app.route("/", methods=["GET"])
+def landing_page():
+    """Serve the marketing/entry landing page."""
+    return render_template("index.html")
+
+
+@app.route("/run-analysis", methods=["POST"])
+def run_analysis():
+    """
+    Start webcam tracking flow from Emotion.py in background.
+    Returns immediately so the page can show a loading/analyzing overlay.
+    """
+    global ANALYSIS_THREAD
+    with ANALYSIS_LOCK:
+        if ANALYSIS_THREAD is not None and ANALYSIS_THREAD.is_alive():
+            return jsonify({
+                "status": "already_running",
+                "message": "Analysis is already running.",
+            }), 202
+
+        ANALYSIS_THREAD = threading.Thread(target=_analysis_runner, daemon=True)
+        ANALYSIS_THREAD.start()
+
+    return jsonify({
+        "status": "started",
+        "message": "Emotion analysis started. Check the webcam window.",
+    }), 202
 
 
 if __name__ == "__main__":

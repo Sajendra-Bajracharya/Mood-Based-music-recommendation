@@ -13,7 +13,7 @@ EMOTION_LABELS = ['Angry', 'Fear', 'Happy', 'Neutral', 'Sad']
 
 # DIRECT MAPPING (Cleaned and Verified)
 MOOD_PLAYLISTS = {
-    'Happy': 'https://open.spotify.com/search/happy%20vibes',
+    'Happy': 'https://open.spotify.com/playlist/03PKLp1XC1GdqhzIMWgsBa',
     'Sad': 'https://open.spotify.com/search/sad%20lofi',
     'Angry': 'https://open.spotify.com/search/heavy%20metal',
     'Fear': 'https://open.spotify.com/search/calm%20piano',
@@ -74,12 +74,12 @@ class KMeansScratch:
             
         return self.centroids
 
-def main():
-    """Run the original webcam-based SentiSymphonics flow."""
+def run_emotion_analysis():
+    """Run webcam mood analysis and return a small result payload."""
     # --- MAIN SYSTEM INITIALIZATION ---
     if not os.path.exists(model_path):
         print(f"Error: {model_path} not found!")
-        return
+        return {"status": "error", "message": f"{model_path} not found", "final_mood": "Unknown"}
 
     model = tf.keras.models.load_model(model_path, compile=False)
     face_classifier = cv2.CascadeClassifier(
@@ -95,106 +95,114 @@ def main():
 
     print(f"--- SentiSymphonics: Analyzing for {TRACKING_DURATION}s ---")
 
-    while system_active:
-        ret, frame = cap.read()
-        if not ret:
-            break
+    try:
+        while system_active:
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-        elapsed_time = time.time() - start_time
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_classifier.detectMultiScale(gray_frame, 1.3, 5)
+            elapsed_time = time.time() - start_time
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = face_classifier.detectMultiScale(gray_frame, 1.3, 5)
 
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
-            # Face ROI is detected from a grayscale frame; convert to RGB for ResNet50V2.
-            roi_gray = cv2.resize(gray_frame[y:y + h, x:x + w], (48, 48))
-            roi_rgb = cv2.cvtColor(roi_gray, cv2.COLOR_GRAY2RGB)
-            roi_rgb = tf.keras.applications.resnet_v2.preprocess_input(roi_rgb.astype("float32"))
-            roi_rgb = np.reshape(roi_rgb, (1, 48, 48, 3))
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+                # Face ROI is detected from a grayscale frame; convert to RGB for ResNet50V2.
+                roi_gray = cv2.resize(gray_frame[y:y + h, x:x + w], (48, 48))
+                roi_rgb = cv2.cvtColor(roi_gray, cv2.COLOR_GRAY2RGB)
+                roi_rgb = tf.keras.applications.resnet_v2.preprocess_input(roi_rgb.astype("float32"))
+                roi_rgb = np.reshape(roi_rgb, (1, 48, 48, 3))
 
-            # Store the raw probabilities for K-Means Analysis
-            prediction = model.predict(roi_rgb, verbose=0)[0]
-            feature_vectors.append(prediction)
-            captured_frame = frame.copy()
+                # Store the raw probabilities for K-Means Analysis
+                prediction = model.predict(roi_rgb, verbose=0)[0]
+                feature_vectors.append(prediction)
+                captured_frame = frame.copy()
 
-            # On-screen feedback
-            remaining = max(0, int(TRACKING_DURATION - elapsed_time))
+                # On-screen feedback
+                remaining = max(0, int(TRACKING_DURATION - elapsed_time))
+                cv2.putText(
+                    frame,
+                    f"Capturing Mood: {remaining}s",
+                    (10, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1,
+                    (0, 0, 255),
+                    2,
+                )
+
+            if elapsed_time >= TRACKING_DURATION:
+                if len(feature_vectors) > 5:
+                    # 1. K-Means Denoising
+                    data = np.array(feature_vectors)
+                    km = KMeansScratch(k=3)
+                    centroids = km.fit(data)
+
+                    # 2. Extract Winner
+                    best_centroid = centroids[np.argmax(np.max(centroids, axis=1))]
+                    winning_idx = np.argmax(best_centroid)
+
+                    # Strip spaces and normalize text to match Dictionary Keys
+                    final_mood = str(EMOTION_LABELS[winning_idx]).strip()
+
+                    print(f"\n--- ANALYSIS COMPLETE ---")
+                    print(f"Detected Mood: '{final_mood}'")
+
+                    # 3. Secure URL Retrieval
+                    music_url = MOOD_PLAYLISTS.get(final_mood)
+
+                    if music_url:
+                        print(f"SUCCESS: Opening playlist for {final_mood}...")
+                        webbrowser.open(music_url)
+                    else:
+                        print(
+                            f"CRITICAL ERROR: Mood '{final_mood}' not found in "
+                            f"MOOD_PLAYLISTS dictionary."
+                        )
+                        print("Check your dictionary keys spelling!")
+
+                    system_active = False
+                else:
+                    print("⚠️ No faces detected. Restarting timer...")
+                    start_time = time.time()
+
+            cv2.imshow('SentiSymphonics - Monitoring', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        # Final Result Overlay Window
+        if not system_active:
+            result_window = np.zeros((300, 600, 3), dtype="uint8")
             cv2.putText(
-                frame,
-                f"Capturing Mood: {remaining}s",
-                (10, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 0, 255),
+                result_window,
+                f"RESULT: {final_mood}",
+                (50, 130),
+                cv2.FONT_HERSHEY_DUPLEX,
+                1.5,
+                (0, 255, 255),
                 2,
             )
+            cv2.putText(
+                result_window,
+                "Opening Spotify...",
+                (50, 200),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (255, 255, 255),
+                1,
+            )
+            cv2.imshow('Final Recommendation', result_window)
+            print("Done. Press any key on the Result window to exit.")
+            cv2.waitKey(0)
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
 
-        if elapsed_time >= TRACKING_DURATION:
-            if len(feature_vectors) > 5:
-                # 1. K-Means Denoising
-                data = np.array(feature_vectors)
-                km = KMeansScratch(k=3)
-                centroids = km.fit(data)
+    return {"status": "success", "final_mood": final_mood}
 
-                # 2. Extract Winner
-                best_centroid = centroids[np.argmax(np.max(centroids, axis=1))]
-                winning_idx = np.argmax(best_centroid)
 
-                # Strip spaces and normalize text to match Dictionary Keys
-                final_mood = str(EMOTION_LABELS[winning_idx]).strip()
-
-                print(f"\n--- ANALYSIS COMPLETE ---")
-                print(f"Detected Mood: '{final_mood}'")
-
-                # 3. Secure URL Retrieval
-                music_url = MOOD_PLAYLISTS.get(final_mood)
-
-                if music_url:
-                    print(f"SUCCESS: Opening playlist for {final_mood}...")
-                    webbrowser.open(music_url)
-                else:
-                    print(
-                        f"CRITICAL ERROR: Mood '{final_mood}' not found in "
-                        f"MOOD_PLAYLISTS dictionary."
-                    )
-                    print("Check your dictionary keys spelling!")
-
-                system_active = False
-            else:
-                print("⚠️ No faces detected. Restarting timer...")
-                start_time = time.time()
-
-        cv2.imshow('SentiSymphonics - Monitoring', frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-    # Final Result Overlay Window
-    if not system_active:
-        result_window = np.zeros((300, 600, 3), dtype="uint8")
-        cv2.putText(
-            result_window,
-            f"RESULT: {final_mood}",
-            (50, 130),
-            cv2.FONT_HERSHEY_DUPLEX,
-            1.5,
-            (0, 255, 255),
-            2,
-        )
-        cv2.putText(
-            result_window,
-            "Opening Spotify...",
-            (50, 200),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (255, 255, 255),
-            1,
-        )
-        cv2.imshow('Final Recommendation', result_window)
-        print("Done. Press any key on the Result window to exit.")
-        cv2.waitKey(0)
-
-    cap.release()
-    cv2.destroyAllWindows()
+def main():
+    """Backward-compatible CLI entrypoint."""
+    run_emotion_analysis()
 
 
 if __name__ == "__main__":

@@ -131,8 +131,8 @@ EMOTION_PATHS: dict[str, EmotionConfig] = {
 # Format: (emotion, path_id) -> Spotify embed playlist URL
 SPOTIFY_BY_EMOTION_AND_PATH: dict[tuple[str, str], str] = {
     # Angry
-    ("Angry", "lean_into_it"): "https://open.spotify.com/embed/playlist/37i9dQZF1DWXRqgorJj26U",   # Rock
-    ("Angry", "cool_down"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO",     # Chill
+    ("Angry", "lean_into_it"): "https://open.spotify.com/embed/playlist/4XISgNpo0uu8APAgWzA4pv",   # Rock
+    ("Angry", "cool_down"): "https://open.spotify.com/embed/playlist/4kOdiP5gbzocwxQ8s2UTOF",     # Chill
     # Neutral
     ("Neutral", "stay_steady"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO", # Focus
     ("Neutral", "shift_gears"): "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC", # Indie/Funk
