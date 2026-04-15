@@ -1,50 +1,67 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import tensorflow as tf
 from tensorflow.keras.models import load_model
 from sklearn.metrics import confusion_matrix, classification_report
-from prepare_data import val_generator  # Make sure prepare_data.py is in the same folder
+from prepare_data import val_generator
 
-# 1. LOAD THE TRAINED MODEL
-model_path = 'emotion_model_best.h5'
-print(f"--- Loading Model: {model_path} ---")
-model = load_model(model_path)
+# 1. LOAD MODEL — compile=False skips needing the custom focal_loss function
+print("--- Loading Model ---")
+model = load_model('emotion_model_best.keras', compile=False)
 
-# 2. THE CRITICAL FIX: SYNC THE GENERATOR
-# If shuffle is True, the labels (y_true) won't match the images (y_pred)
-val_generator.shuffle = False  
-val_generator.reset()          
+# Recompile with standard loss just for evaluation (predictions aren't affected by loss)
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(),
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
 
-# Sanity check: the validation generator must produce RGB tensors to match ResNet50V2.
-print(f"Validation generator color_mode: {getattr(val_generator, 'color_mode', 'unknown')}")
-if getattr(val_generator, "color_mode", None) != "rgb":
-    raise ValueError("val_generator is not using color_mode='rgb' (expected for ResNet50V2).")
+# 2. SYNC THE GENERATOR — must reset before predicting
+val_generator.shuffle = False
+val_generator.reset()
 
-# 3. GET PREDICTIONS
-print("--- Evaluating on Validation Data... ---")
-# Predict probabilities
+# 3. SANITY CHECK — grayscale now, not rgb
+print(f"Validation color mode: {getattr(val_generator, 'color_mode', 'unknown')}")
+if getattr(val_generator, "color_mode", None) != "grayscale":
+    raise ValueError("val_generator must use color_mode='grayscale'. Check prepare_data.py.")
+
+# 4. EVALUATE
+print("\n--- Running Evaluation ---")
+loss, accuracy = model.evaluate(val_generator, verbose=1)
+print(f"\nValidation Loss    : {loss:.4f}")
+print(f"Validation Accuracy: {accuracy * 100:.2f}%")
+
+# 5. GET PREDICTIONS
+print("\n--- Generating Predictions ---")
 predictions = model.predict(val_generator, steps=len(val_generator), verbose=1)
-# Convert probabilities to class indices
 y_pred = np.argmax(predictions, axis=1)
-
-# Get the true labels (now in the correct order)
 y_true = val_generator.classes
 class_labels = list(val_generator.class_indices.keys())
 
-# 4. GENERATE CLASSIFICATION REPORT
+# Trim y_true in case of batch size mismatch
+y_true = y_true[:len(y_pred)]
+
+# 6. CLASSIFICATION REPORT
 print("\n--- Classification Report ---")
-# This will now show your TRUE accuracy (likely 50-60%)
 print(classification_report(y_true, y_pred, target_names=class_labels))
 
-# 5. CREATE CONFUSION MATRIX
+# 7. CONFUSION MATRIX
 cm = confusion_matrix(y_true, y_pred)
 
-
-
 plt.figure(figsize=(10, 8))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-            xticklabels=class_labels, yticklabels=class_labels)
-plt.title('Emotion Detection Confusion Matrix (Corrected)')
+sns.heatmap(
+    cm,
+    annot=True,
+    fmt='d',
+    cmap='Blues',
+    xticklabels=class_labels,
+    yticklabels=class_labels
+)
+plt.title('Emotion Detection Confusion Matrix')
 plt.ylabel('Actual Emotion')
 plt.xlabel('Predicted Emotion')
+plt.tight_layout()
+plt.savefig('confusion_matrix.png', dpi=150)  # Saves a copy automatically
 plt.show()
+print("\nConfusion matrix saved as confusion_matrix.png")
