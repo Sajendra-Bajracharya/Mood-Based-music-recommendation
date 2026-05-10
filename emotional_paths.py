@@ -51,13 +51,13 @@ EMOTION_PATHS: dict[str, EmotionConfig] = {
         ),
         "paths": [
             {
-                "id": "",
+                "id": "stay_steady",
                 "label": "Focus",
                 "description": "Calm and steady",
                 "music_profile": "minimalist instrumentals, deep house, brown noise",
             },
             {
-                "id": "shift_stay_steadygears",
+                "id": "shift_gears",
                 "label": "Boost",
                 "description": "Light and fun",
                 "music_profile": "indie, funk, discovery playlists",
@@ -133,18 +133,18 @@ SPOTIFY_BY_EMOTION_AND_PATH: dict[tuple[str, str], str] = {
     # Angry
     ("Angry", "lean_into_it"): "https://open.spotify.com/embed/playlist/4XISgNpo0uu8APAgWzA4pv",   # Rock
     ("Angry", "cool_down"): "https://open.spotify.com/embed/playlist/4kOdiP5gbzocwxQ8s2UTOF",     # Chill
-    # Neutral
-    ("Neutral", "stay_steady"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO", # Focus
-    ("Neutral", "shift_gears"): "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC", # Indie/Funk
+    # Neutral (must match path ids in EMOTION_PATHS["Neutral"]["paths"])
+    ("Neutral", "stay_steady"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO",  # Focus / chill
+    ("Neutral", "shift_gears"): "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC",  # Indie / upbeat
     # Happy
     ("Happy", "celebrate"): "https://open.spotify.com/embed/playlist/37i9dQZF1DXdPec7aLTmlC",     # Pop/Dance
     ("Happy", "mellow_out"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX4sWSpwq3LiO",    # Chill
     # Fear
     ("Fear", "validate"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX7qK8ma5wgG1",       # Atmospheric
     ("Fear", "ground"): "https://open.spotify.com/embed/playlist/37i9dQZF1DWXe9gFZP0gtP",         # Calm
-    # Sad
-    ("Sad", "lean_in"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX7qK8ma5wgG1",         # Sad
-    ("Sad", "comfort"): "https://open.spotify.com/embed/playlist/37i9dQZF1DWXe9gFZP0gtP",         # Soothing
+    # Sad (first path lean_in is used for auto-suggest; comfort = warmer playlist)
+    ("Sad", "lean_in"): "https://open.spotify.com/embed/playlist/37i9dQZF1DX7qK8ma5wgG1",  # Melancholic / reflective
+    ("Sad", "comfort"): "https://open.spotify.com/embed/playlist/37i9dQZF1DWXe9gFZP0gtP",  # Soothing / warm
 }
 
 # Fallback when emotion has no path config or path_id is unknown

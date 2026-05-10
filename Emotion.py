@@ -6,7 +6,7 @@ import time
 import webbrowser
 
 model_path = 'emotion_model_best.keras'
-TRACKING_DURATION = 10
+TRACKING_DURATION = 5
 EMOTION_LABELS = ['Angry', 'Fear', 'Happy', 'Neutral', 'Sad']
 
 MOOD_PLAYLISTS = {
@@ -23,19 +23,16 @@ class KMeansScratch:
         self.k = k
         self.max_iters = max_iters
         self.centroids = None
-
     def fit(self, data):
         n_samples, n_features = data.shape
         np.random.seed(42)
         random_indices = np.random.choice(n_samples, self.k, replace=False)
         self.centroids = data[random_indices].copy()
-
         for _ in range(self.max_iters):
             labels = []
             for x in data:
                 distances = [float(np.sum((x - c) ** 2) ** 0.5) for c in self.centroids]
                 labels.append(np.argmin(distances))
-
             labels = np.array(labels)
             new_centroids = np.zeros((self.k, n_features))
 
@@ -45,9 +42,7 @@ class KMeansScratch:
 
             if np.sum((self.centroids - new_centroids) ** 2) < 1e-6:
                 break
-
             self.centroids = new_centroids
-
         return self.centroids
 
 

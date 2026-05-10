@@ -41,18 +41,17 @@ def residual_se_block(x, filters, dropout_rate=0.3):
     x = layers.Dropout(dropout_rate)(x)
     return x
 
-# --- BUILD MODEL ---
+
 def build_model():
     inputs = Input(shape=(48, 48, 1))
 
-    # Stem: initial feature extraction
     x = layers.Conv2D(64, 3, padding='same', use_bias=False)(inputs)
     x = layers.BatchNormalization()(x)
     x = layers.Activation('relu')(x)
 
     # Block 1 — 48x48
     x = residual_se_block(x, 64, dropout_rate=0.2)
-    x = layers.MaxPooling2D(2, 2)(x)   # → 24x24
+    x = layers.MaxPooling2D(2, 2)(x)   
 
     # Block 2 — 24x24
     x = residual_se_block(x, 128, dropout_rate=0.3)
@@ -76,10 +75,6 @@ def build_model():
 
 model = build_model()
 model.summary()
-
-# --- FOCAL LOSS ---
-# Down-weights easy "Happy" predictions automatically
-# More powerful than class_weights alone for imbalanced face data
 def focal_loss(gamma=2.0):
     def loss_fn(y_true, y_pred):
         y_pred = tf.clip_by_value(y_pred, 1e-7, 1.0)
@@ -89,8 +84,7 @@ def focal_loss(gamma=2.0):
         return tf.reduce_mean(focal_weight * ce)
     return loss_fn
 
-# --- COSINE DECAY with WARM RESTARTS ---
-# Escapes local minima better than ReduceLROnPlateau
+
 steps_per_epoch = len(train_generator)
 lr_schedule = tf.keras.optimizers.schedules.CosineDecayRestarts(
     initial_learning_rate=0.001,
@@ -105,7 +99,6 @@ model.compile(
     metrics=['accuracy']
 )
 
-# --- CLASS WEIGHTS (keep alongside focal loss for double protection) ---
 labels = train_generator.classes
 weights = class_weight.compute_class_weight(
     class_weight='balanced', classes=np.unique(labels), y=labels

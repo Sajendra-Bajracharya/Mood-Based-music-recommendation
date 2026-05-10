@@ -113,22 +113,14 @@ def _analyze_image(payload: dict) -> tuple[str, int, list, str, str | None]:
     cluster_index = compute_cluster(prediction)
     path_config = get_paths_for_emotion(emotion)
 
-    if emotion == "Fear":
-        auto_spotify_uri = get_playlist_uri(emotion, "ground")
-        return emotion, int(cluster_index), [], "Take it easy.", auto_spotify_uri
+    # Always auto-suggest music without asking follow-up choices.
+    if path_config and path_config["paths"]:
+        default_path_id = path_config["paths"][0]["id"]
+        auto_spotify_uri = get_playlist_uri(emotion, default_path_id)
+        return emotion, int(cluster_index), [], "", auto_spotify_uri
 
-    if emotion == "Happy":
-        auto_spotify_uri = get_playlist_uri(emotion, "celebrate")
-        return emotion, int(cluster_index), [], "Keep the good vibes.", auto_spotify_uri
-
-    if path_config:
-        paths = path_config["paths"]
-        prompt = path_config["prompt"]
-    else:
-        paths = []
-        prompt = "Choose how you'd like to feel."
-
-    return emotion, int(cluster_index), paths, prompt, None
+    # Fallback for unknown or unsupported emotions.
+    return emotion, int(cluster_index), [], "", DEFAULT_PLAYLIST
 
 
 @app.route("/api/analyze", methods=["POST"])
